@@ -1,0 +1,17 @@
+[project]
+name = "pit-wall"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.3.4",
+    "pandas>=2.3.3",
+    "streamlit>=1.51.0",
+]
+
+[dependency-groups]
+dev = [
+    "jupyter-client>=8.6.3",
+    "pynvim>=0.6.0",
+]
