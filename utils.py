@@ -77,3 +77,9 @@ def get_info_table(session, session_option):
         return session.results[QUALIFYING_KEYS]
     else:
         return None
+
+
+def get_driver_info(session):
+    drivers_nums = session.drivers
+    drivers = list(map(lambda x: session.get_driver(x), drivers_nums))
+    return pd.DataFrame(drivers)

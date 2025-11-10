@@ -7,8 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "fastf1>=3.6.1",
     "numpy>=2.3.4",
+    "orjson>=3.11.4",
     "pandas>=2.3.3",
-    "streamlit>=1.51.0",
+    "streamlit[charts]>=1.51.0",
     "watchdog>=6.0.0",
 ]
 

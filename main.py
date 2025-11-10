@@ -2,12 +2,88 @@ import datetime as dt
 
 import streamlit as st
 from fastf1 import get_event_schedule
+import plotly.graph_objects as go
 
-from utils import get_info_table, get_session_data, type_to_options
+from utils import get_driver_info, get_info_table, get_session_data, type_to_options
 
 race_tabs = ["Race Results", "Driver Lap Times"]
 qualifying_tabs = ["Race Results", "Driver Lap Times"]
 practice_tabs = ["Driver Lap Times"]
+
+
+def generate_driver_lap_times_tab(session):
+    st.subheader("Driver Lap Times")
+    drivers = get_driver_info(session)
+
+    # Form
+    with st.container(
+        horizontal=True, gap="small", vertical_alignment="center", border=True
+    ):
+        selected_driver = st.selectbox(
+            "Select Driver",
+            options=drivers,
+            format_func=lambda x: drivers[drivers["DriverNumber"] == x][
+                "FullName"
+            ].item(),
+            index=None,
+            placeholder="Select Driver",
+            label_visibility="collapsed",
+        )
+        accurate = st.checkbox("Accurate Laps Only", value=False)
+    if selected_driver is None:
+        st.info("Please select a driver to view lap times.")
+        return
+    laps = session.laps.pick_drivers([selected_driver])
+    if accurate:
+        laps = laps.pick_accurate()
+    laps = laps.reset_index(drop=True)
+    laps["LapTime"] = laps["LapTime"].apply(
+        lambda x: x.total_seconds() if x is not None else None
+    )
+    laps["Sector1Time"] = laps["Sector1Time"].apply(
+        lambda x: x.total_seconds() if x is not None else None
+    )
+    laps["Sector2Time"] = laps["Sector2Time"].apply(
+        lambda x: x.total_seconds() if x is not None else None
+    )
+    laps["Sector3Time"] = laps["Sector3Time"].apply(
+        lambda x: x.total_seconds() if x is not None else None
+    )
+    columns = [
+        "LapNumber",
+        "LapTime",
+        "Sector1Time",
+        "Sector2Time",
+        "Sector3Time",
+        "Compound",
+        "TyreLife",
+    ]
+    st.write(laps[columns])
+
+    laps_box = (
+        laps[["LapNumber", "LapTime", "Sector1Time", "Sector2Time", "Sector3Time"]]
+        .melt(
+            id_vars=["LapNumber"],
+            value_vars=["LapTime", "Sector1Time", "Sector2Time", "Sector3Time"],
+            var_name="Type",
+            value_name="Time",
+        )
+    )
+
+    st.write(laps_box)
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Box(
+            y=laps["LapTime"],
+            boxpoints="all",
+            jitter=0.5,
+            pointpos=-1.8,
+            name="Lap Time",
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def generate_qualifying_tabs(session):
@@ -16,7 +92,7 @@ def generate_qualifying_tabs(session):
         st.subheader("Qualifying Results")
         st.write(get_info_table(session, "Qualifying").reset_index(drop=True))
     with tab2:
-        st.subheader("Driver Lap Times")
+        generate_driver_lap_times_tab(session)
 
 
 def generate_race_tabs(session):
@@ -25,7 +101,7 @@ def generate_race_tabs(session):
         st.subheader("Race Results")
         st.write(get_info_table(session, "Race").reset_index(drop=True))
     with tab2:
-        st.subheader("Driver Lap Times")
+        generate_driver_lap_times_tab(session)
 
 
 def generate_main_view(event, session, session_option):
