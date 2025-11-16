@@ -2,6 +2,7 @@ import datetime as dt
 
 import streamlit as st
 from fastf1 import get_event_schedule
+from fastf1.plotting import get_compound_color
 import plotly.graph_objects as go
 
 from utils import get_driver_info, get_info_table, get_session_data, type_to_options
@@ -57,33 +58,54 @@ def generate_driver_lap_times_tab(session):
         "Sector3Time",
         "Compound",
         "TyreLife",
+        "Stint",
     ]
     st.write(laps[columns])
 
-    laps_box = (
-        laps[["LapNumber", "LapTime", "Sector1Time", "Sector2Time", "Sector3Time"]]
-        .melt(
-            id_vars=["LapNumber"],
-            value_vars=["LapTime", "Sector1Time", "Sector2Time", "Sector3Time"],
-            var_name="Type",
-            value_name="Time",
-        )
+    options = ["LapTime", "Sector1Time", "Sector2Time", "Sector3Time"]
+    selected_series = st.segmented_control(
+        "Select Series to Plot",
+        options=options,
+        key="series_select",
+        default="LapTime",
+        label_visibility="collapsed",
     )
-
-    st.write(laps_box)
 
     fig = go.Figure()
     fig.add_trace(
         go.Box(
-            y=laps["LapTime"],
-            boxpoints="all",
-            jitter=0.5,
-            pointpos=-1.8,
+            x=laps[selected_series],
             name="Lap Time",
         )
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, theme="streamlit")
+
+    tyre_color_map = {}
+
+    for compound in laps["Compound"].unique():
+        tyre_color_map[compound] = get_compound_color(compound, session)
+
+    stint_groups = laps.groupby("Stint")
+
+    fig = go.Figure()
+    for stint, stint_laps in stint_groups:
+        fig.add_trace(
+            go.Scatter(
+                x=stint_laps["TyreLife"],
+                y=stint_laps["LapTime"],
+                mode="markers+lines",
+                marker=dict(
+                    color=[tyre_color_map[comp] for comp in stint_laps["Compound"]],
+                    size=10,
+                    opacity=0.8,
+                ),
+                line=dict(width=2, color="gray"),
+                name=f"Stint {int(stint)}",
+            )
+        )
+
+    st.plotly_chart(fig, use_container_width=True, theme="streamlit")
 
 
 def generate_qualifying_tabs(session):
