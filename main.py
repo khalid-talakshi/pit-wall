@@ -5,7 +5,7 @@ from fastf1 import get_event_schedule
 from fastf1.plotting import get_compound_color, get_driver_style
 import plotly.graph_objects as go
 
-from utils import get_driver_info, get_info_table, get_session_data, type_to_options
+from src.utils import get_driver_info, get_info_table, get_session_data, type_to_options
 
 race_tabs = ["Race Results", "Driver Explorer", "Driver Telemetry"]
 qualifying_tabs = ["Race Results", "Driver Lap Times", "Driver Telemetry"]
