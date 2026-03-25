@@ -1,13 +1,17 @@
 import datetime as dt
 
+import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from fastf1 import get_event_schedule
+from fastf1.core import Session
+from fastf1.events import Event
 from fastf1.plotting import get_compound_color, get_driver_style
-import plotly.graph_objects as go
 
+from ui import driver_selectbox
 from utils import get_driver_info, get_info_table, get_session_data, type_to_options
 
-race_tabs = ["Race Results", "Driver Explorer", "Driver Telemetry"]
+race_tabs = ["Race Results", "Driver Explorer", "Driver Telemetry", "Race Compare"]
 qualifying_tabs = ["Race Results", "Driver Lap Times", "Driver Telemetry"]
 practice_tabs = ["Driver Lap Times"]
 
@@ -24,17 +28,7 @@ def generate_driver_lap_times_tab(session):
     with st.container(
         horizontal=True, gap="small", vertical_alignment="center", border=True
     ):
-        selected_driver = st.selectbox(
-            "Select Driver",
-            options=drivers,
-            format_func=lambda x: drivers[drivers["DriverNumber"] == x][
-                "FullName"
-            ].item(),
-            index=None,
-            placeholder="Select Driver",
-            label_visibility="collapsed",
-            key="laptime_driver_select",
-        )
+        selected_driver = driver_selectbox(drivers)
 
         laps = (
             list(
@@ -174,7 +168,9 @@ def generate_driver_telemetry_tab(session):
         )
         lap_number = st.selectbox(
             "Select Lap Number",
-            options=session.laps.pick_drivers([selected_driver])["LapNumber"].unique(),
+            options=session.laps.pick_drivers([selected_driver])["LapNumber"].unique()
+            if selected_driver
+            else [],
             index=None,
             placeholder="Select Lap Number",
             label_visibility="collapsed",
@@ -203,6 +199,11 @@ def generate_driver_telemetry_tab(session):
         telemetry["Time"].dt.total_seconds()
         - telemetry["Time"].dt.total_seconds().min()
     )
+
+    def format_series(series):
+        if series.lower() == "brake":
+            return telemetry[series].apply(lambda x: 1 if x else 0)
+        return telemetry[series]
 
     options = ["Throttle", "Brake", "Speed", "RPM", "nGear"]
     selected_series = st.segmented_control(
@@ -233,8 +234,8 @@ def generate_driver_telemetry_tab(session):
             y=telemetry["Y"],
             mode="markers",
             marker=dict(
-                color=telemetry[selected_series],
-                colorscale="Viridis",
+                color=format_series(selected_series),
+                colorscale="bluered",
                 size=5,
                 colorbar=dict(title=selected_series),
             ),
@@ -243,6 +244,31 @@ def generate_driver_telemetry_tab(session):
     )
 
     st.plotly_chart(map, use_container_width=True, theme="streamlit")
+
+
+def generate_race_compare_tab(session: Session):
+    st.subheader("Driver Lap Times")
+    drivers = get_driver_info(session)
+
+    with st.container(
+        horizontal=True, gap="small", vertical_alignment="center", border=True
+    ):
+        driver1_num: int = driver_selectbox(drivers, "compare_driver1_select")
+        driver2_num: int = driver_selectbox(drivers, "compare_driver2_select")
+
+    print("driver1", driver1_num)
+    print("driver2", driver2_num)
+
+    if driver1_num is None or driver2_num is None or driver1_num == driver2_num:
+        st.info("Please select two different drivers to compare")
+        return
+
+    driver1 = drivers[drivers["DriverNumber"] == driver1_num].iloc[0]
+    driver2 = drivers[drivers["DriverNumber"] == driver2_num].iloc[0]
+
+    laps = session.laps.pick_drivers([driver1_num, driver2_num])
+
+    print(laps)
 
 
 def generate_qualifying_tabs(session):
@@ -254,8 +280,8 @@ def generate_qualifying_tabs(session):
         generate_driver_lap_times_tab(session)
 
 
-def generate_race_tabs(session):
-    tab1, tab2, tab3 = st.tabs(race_tabs)
+def generate_race_tabs(session: Session):
+    tab1, tab2, tab3, tab4 = st.tabs(race_tabs)
     with tab1:
         st.subheader("Race Results")
         st.write(get_info_table(session, "Race").reset_index(drop=True))
@@ -263,9 +289,11 @@ def generate_race_tabs(session):
         generate_driver_lap_times_tab(session)
     with tab3:
         generate_driver_telemetry_tab(session)
+    with tab4:
+        generate_race_compare_tab(session)
 
 
-def generate_main_view(event, session, session_option):
+def generate_main_view(event: Event, session: Session, session_option: str):
     st.subheader(f"{event['EventName']} - {session.session_info['Name']} Leaderboard")
     if session_option == "Race":
         generate_race_tabs(session)
@@ -313,6 +341,9 @@ def main():
 
     if session_select is not None:
         session = get_session_data(event, session_select)
+        if session is None:
+            st.error("Selected session data is not available.")
+            return
         session.load()
         generate_main_view(event, session, session_select)
 

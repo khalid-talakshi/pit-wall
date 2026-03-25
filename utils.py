@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from fastf1.core import DriverResult, Session
+from fastf1.events import Event
 
 from constants import (
     CONVENTIONAL_OPTIONS,
@@ -22,7 +24,7 @@ def type_to_options(event_type: str) -> list:
         return CONVENTIONAL_OPTIONS
 
 
-def get_session_data(event, session_option: str):
+def get_session_data(event: Event, session_option: str) -> Session | None:
     if session_option == "Practice 1":
         return event.get_practice(1)
     elif session_option == "Practice 2":
@@ -79,7 +81,9 @@ def get_info_table(session, session_option):
         return None
 
 
-def get_driver_info(session):
+def get_driver_info(session: Session) -> pd.DataFrame:
     drivers_nums = session.drivers
-    drivers = list(map(lambda x: session.get_driver(x), drivers_nums))
+    drivers: list[DriverResult] = list(
+        map(lambda x: session.get_driver(x), drivers_nums)
+    )
     return pd.DataFrame(drivers)

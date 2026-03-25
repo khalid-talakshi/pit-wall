@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "debugpy>=1.8.17",
-    "fastf1>=3.6.1",
+    "fastf1>=3.8.1",
     "numpy>=2.3.4",
     "orjson>=3.11.4",
     "pandas>=2.3.3",
